@@ -114,6 +114,7 @@ tr.saldo{background:#f3ecfb}
   <div><h1>Tablero de Facturación · La Ayurá</h1><div class="sub">Seguimiento mensual de facturación · Fase I</div></div>
   <div class="spacer"></div>
   <button class="va-btn" onclick="openVA()">💎 Valor agregado</button>
+  <button class="va-btn" style="background:linear-gradient(135deg,#2f6fd6,#4d95e5)" onclick="generarCorreo()">📧 Correo del mes</button>
   <div class="meta-badge"><div class="l">Meta general</div><div class="v" id="metaGen">$20.000 M</div></div>
   <button class="icobtn" id="themeBtn" onclick="toggleTheme()" title="Día / Noche">🌙</button>
   <button class="icobtn" title="Recargar datos originales" onclick="if(confirm('¿Recargar los datos originales? Se perderán los cambios manuales.')){localStorage.removeItem(LS);location.reload();}">↻</button>
@@ -849,7 +850,7 @@ function renderTable(){
   const est=estados.find(e=>e.id===a.estado)||estados[0]; const at=atraso(a);
   return '<tr class="'+(esAdel(a)?'adel':'')+(esSaldo(a)?' saldo':'')+'">'
    +'<td style="white-space:nowrap"><span class="sem" title="'+at.t+'" style="background:'+at.c+'"></span><span class="pill" style="font-weight:800;min-width:0">'+esc(a.seq||'')+'</span></td>'
-   +'<td><input class="cell-in" value="'+esc(a.act)+'" title="'+esc(a.act)+'" onchange="edit('+a.id+',\'act\',this.value)" style="font-weight:600;min-width:270px">'+(esAdel(a)?'<span class="badge-adel">⏩ Adelantada de '+nomMes(a.mes)+'</span>':'')+(esSaldo(a)?'<span class="badge-adel" style="color:#7a3fc0">↪ Saldo de '+nomMes(a.saldoDeMes)+' (ejec. parcial)</span>':'')+(a.estado==="parcial"?'<span class="badge-adel" style="color:var(--grn)">💰 pagado $'+(a.pagado||0).toLocaleString("es-CO")+'M de $'+a.valor.toLocaleString("es-CO")+'M</span>':'')+'</td>'
+   +'<td><input class="cell-in" value="'+esc(a.act)+'" title="'+esc(a.act)+'" onchange="edit('+a.id+',\'act\',this.value)" style="font-weight:600;min-width:270px">'+(esAdel(a)?'<span class="badge-adel">⏩ Adelantada de '+nomMes(a.mes)+'</span>':'')+(esSaldo(a)?'<span class="badge-adel" style="color:#7a3fc0">↪ Saldo de '+nomMes(a.saldoDeMes)+' — se pagó $'+(a.saldoPagado||0).toLocaleString("es-CO")+'M allá</span>':'')+(a.estado==="parcial"?'<span class="badge-adel" style="color:var(--grn)">💰 pagado $'+(a.pagado||0).toLocaleString("es-CO")+'M de $'+a.valor.toLocaleString("es-CO")+'M</span>':'')+'</td>'
    +'<td style="white-space:nowrap;font-size:12px">'+fdd(a.ini)+'</td>'
    +'<td style="white-space:nowrap;font-size:12px">'+fdd(a.fin)+'</td>'
    +'<td><button class="est '+est.cls+'" onclick="estMenu('+a.id+',event)">'+esc(est.label)+' ▾</button></td>'
@@ -858,7 +859,7 @@ function renderTable(){
    +'<td><span class="pill">'+esc(a.frente||"—")+'</span></td>'
    +'<td><button class="pill" style="cursor:pointer;white-space:nowrap" onclick="espMenu('+a.id+')">'+esc(a.esp)+' ▾</button></td>'
    +'<td><button class="pill" style="cursor:pointer;white-space:nowrap" onclick="respMenu('+a.id+')">'+esc(a.resp)+' ▾</button></td>'
-   +'<td style="white-space:nowrap"><button class="mini" title="Agregar soporte" onclick="addSop(\''+esc(a.seq)+'\')">📎</button>'+((soportesIdx[a.seq]&&soportesIdx[a.seq].length)?'<button class="mini" title="Ver soportes" onclick="verSop(\''+esc(a.seq)+'\')" style="width:auto;padding:0 7px;color:var(--blu)">👁 '+soportesIdx[a.seq].length+'</button>':'')+'</td>'+'<td><div class="rowbtns"><button class="mini adel" title="Adelantar a otro mes" onclick="adelMenu('+a.id+',event)">⏩</button><button class="mini" title="Retirar" onclick="delAct('+a.id+')">✕</button></div></td>'
+   +'<td style="white-space:nowrap"><button class="mini" title="Agregar soporte" onclick="addSop(\''+esc(a.seq)+'\')">📎</button>'+((soportesIdx[a.seq]&&soportesIdx[a.seq].length)?'<button class="mini" title="Ver soportes" onclick="verSop(\''+esc(a.seq)+'\')" style="width:auto;padding:0 7px;color:var(--blu)">👁 '+soportesIdx[a.seq].length+'</button>':'')+'</td>'+'<td><div class="rowbtns"><button class="mini" title="Registrar pago parcial (el saldo pasa al mes siguiente)" onclick="setParcial('+a.id+')" style="font-size:12px">💵</button><button class="mini adel" title="Adelantar a otro mes" onclick="adelMenu('+a.id+',event)">⏩</button><button class="mini" title="Retirar" onclick="delAct('+a.id+')">✕</button></div></td>'
    +'</tr>';
  }).join("");
  setTimeout(syncTop,0);
@@ -908,7 +909,7 @@ function setParcial(id){ const a=acts.find(x=>x.id===id); if(!a)return;
  a.estado="parcial"; a.pagado=pagado;
  acts=acts.filter(x=>x.saldoDe!==a.id);
  const saldo=a.valor-pagado; const nm=nextMes(a.adelantadoA||a.mes);
- if(saldo>0 && nm){ acts.push({id:nextId++,seq:a.seq,act:a.act,ini:a.ini,fin:a.fin,estado:"pendiente",obs:"Saldo de "+nomMes(a.mes)+" \u00b7 ejecutado parcial",valor:saldo,frente:a.frente,esp:a.esp,resp:a.resp,mes:nm,adelantadoA:null,saldoDe:a.id,saldoDeMes:a.mes}); }
+ if(saldo>0 && nm){ acts.push({id:nextId++,seq:a.seq,act:a.act,ini:a.ini,fin:a.fin,estado:"pendiente",obs:"Se pagó $"+pagado+"M en "+nomMes(a.mes)+" · queda este saldo por facturar",valor:saldo,frente:a.frente,esp:a.esp,resp:a.resp,mes:nm,adelantadoA:null,saldoDe:a.id,saldoDeMes:a.mes,saldoPagado:pagado}); }
  save(); renderAll();
  if(saldo>0&&nm) alert("Pagado $"+pagado+"M en "+nomMes(a.mes)+". El saldo $"+saldo+"M pas\u00f3 a "+nomMes(nm)+".");
 }
@@ -987,6 +988,46 @@ function compartirKPI(){
  else copiarTxt(t);
 }
 function copiarTxt(t){ try{ navigator.clipboard.writeText(t).then(()=>alert("Resumen copiado ✔ — pégalo en WhatsApp")); }catch(e){ const ta=document.createElement("textarea"); ta.value=t; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");}catch(_){} ta.remove(); alert("Resumen copiado ✔"); } }
+
+function agrupaMotivos(lista){
+ const cats=[["falta de orden de compra o facturación",/orden de compra|no ha factur|no factur|sin factur|compra de|factur/i],
+  ["restricción de caudal",/restricci|caudal/i],
+  ["pendiente de PDC",/pdc/i],
+  ["revisión de APU por interventoría",/apu/i],
+  ["transporte o llegada de equipos a planta",/transporte|varado|que llegue|llegar a planta|a planta/i],
+  ["actividades predecesoras o de secuencia",/predecesor|primero se|depende|antes de|atras/i],
+  ["seguimiento o verificación en campo",/seguimiento|verific|revisar|definir/i]];
+ const cont={};
+ lista.forEach(a=>{ const o=(a.obs||"").toLowerCase(); let hit=false; cats.forEach(c=>{ if(c[1].test(o)){cont[c[0]]=(cont[c[0]]||0)+1;hit=true;} }); if(!hit&&o.trim())cont["otros motivos puntuales"]=(cont["otros motivos puntuales"]||0)+1; });
+ return Object.entries(cont).sort((a,b)=>b[1]-a[1]);
+}
+function generarCorreo(){
+ const mes=nomMes(curMes), arr=actsDeMes(curMes);
+ const ev=a=>a.estado==="parcial"?(a.pagado||0):a.valor;
+ const ej=arr.filter(a=>a.estado==="ejecutado"), par=arr.filter(a=>a.estado==="parcial");
+ const pend=arr.filter(a=>["ejecutado","sin","detenida","parcial"].indexOf(a.estado)<0);
+ const sin=arr.filter(a=>a.estado==="sin"||a.estado==="detenida");
+ const sum=l=>l.reduce((s,a)=>s+ev(a),0);
+ const fmt=v=>"$"+v.toLocaleString("es-CO")+" M";
+ const motivos=agrupaMotivos(pend.concat(sin));
+ let t="Cordial saludo, compañeros:\n\n";
+ t+="De acuerdo con la revisión de facturación correspondiente al mes de "+mes+", se obtiene lo siguiente:\n\n";
+ t+="• Actividades ejecutadas / facturadas: "+ej.length+" por un valor de "+fmt(sum(ej))+".\n";
+ if(par.length) t+="• Actividades en ejecución parcial: "+par.length+" por "+fmt(sum(par))+".\n";
+ t+="• Actividades pendientes por facturar: "+pend.length+" por un valor de "+fmt(sum(pend))+".\n";
+ t+="• Actividades sin ejecutar este mes: "+sin.length+" por un valor de "+fmt(sum(sin))+".\n\n";
+ if(motivos.length){ t+="Los principales motivos por los cuales estas actividades aún no se han facturado son:\n";
+   motivos.slice(0,6).forEach(m=>{ t+="  - "+m[0].charAt(0).toUpperCase()+m[0].slice(1)+" ("+m[1]+" actividad"+(m[1]>1?"es":"")+").\n"; }); t+="\n"; }
+ t+="Solicitamos gestionar oportunamente estos frentes para cumplir con la facturación programada del mes. Quedo atento a cualquier inquietud.\n\n";
+ t+="Cordialmente,\nJosé Luis Córdoba Moreno\nSupervisión de obra — EPM\nProyecto Modernización PTAP La Ayurá";
+ const asunto="Balance de facturación — "+mes;
+ let h='<h3>📧 Correo del mes · '+esc(mes)+'</h3>';
+ h+='<textarea id="mailTxt" style="width:100%;height:330px;background:var(--pnl2);color:var(--tx);border:1px solid var(--bd);border-radius:8px;padding:11px;font-size:12.5px;font-family:inherit;line-height:1.45">'+esc(t)+'</textarea>';
+ h+='<div class="mbtns" style="margin-top:8px"><button class="mbtn accent" onclick="copiarTxt(document.getElementById(\'mailTxt\').value)">📋 Copiar</button>';
+ h+='<button class="mbtn" onclick="window.location.href=\'mailto:?subject='+encodeURIComponent(asunto)+'&body=\'+encodeURIComponent(document.getElementById(\'mailTxt\').value)">✉ Abrir en correo</button></div>';
+ h+='<button class="close" onclick="closeOv()">Cerrar</button>';
+ showModal(h);
+}
 
 /* valor agregado */
 function openVA(){
